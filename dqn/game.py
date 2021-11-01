@@ -22,7 +22,7 @@ class Env():
                                 [0,0,0,0,0],
                                 [0,3,0,0,0],
                                 [0,0,0,0,2],]):
-        self.migong=migong
+        self.migong = migong.copy()
         self.x1,self.y1=0,0
         self.end_game=0
         return self.migong
@@ -47,72 +47,69 @@ class Env():
         cv2.waitKey(1)
         
         
-    def step(self, action):
-        r=0
-        #['u'0, 'd'1, 'l'2, 'r'3]
-        if action==0:
-            if self.y1==0:
-                r=-0.5
+    def step(self, action, loc):
+        r = -1
+        # ['u'0, 'd'1, 'l'2, 'r'3]
+        if action == 0:
+            if self.y1 == 0:
+                r = -0.5
+            elif self.migong[self.y1 - 1][self.x1] == 0 or self.migong[self.y1 - 1][self.x1] == 2:
+                self.migong[self.y1][self.x1] = 0
+                if self.migong[self.y1 - 1][self.x1] == 2:
+                    self.end_game = 2
+                    r = 100
+                self.migong[self.y1 - 1][self.x1] = 1
+                self.y1 -= 1
+                loc -= 21
             else:
-                self.migong[self.y1][self.x1]=0
-                self.migong[self.y1-1][self.x1]=1
-                self.y1-=1
-                if self.y1==1 and self.x1==3:
-                    self.end_game=1
-                    r=-1
-                elif self.y1==3 and self.x1==1:
-                    self.end_game=1
-                    r=-1
-                elif self.y1==4 and self.x1==4:
-                    self.end_game=2
-                    r=1
-        if action==1:
-            if self.y1==4:
-                r=-0.5
-            else: 
-                self.migong[self.y1][self.x1]=0
-                self.migong[self.y1+1][self.x1]=1
-                self.y1+=1
-                if self.y1==1 and self.x1==3:
-                    self.end_game=1
-                    r=-1
-                elif self.y1==3 and self.x1==1:
-                    self.end_game=1
-                    r=-1
-                elif self.y1==4 and self.x1==4:
-                    self.end_game=2
-                    r=1
-        if action==2:
-            if self.x1==0:
-                r=-0.5
-            else:                
-                self.migong[self.y1][self.x1]=0
-                self.migong[self.y1][self.x1-1]=1
-                self.x1-=1
-                if self.y1==1 and self.x1==3:
-                    self.end_game=1
-                    r=-1
-                elif self.y1==3 and self.x1==1:
-                    self.end_game=1
-                    r=-1
-                elif self.y1==4 and self.x1==4:
-                    self.end_game=2
-                    r=1
-        if action==3:
-            if self.x1==4:
-                r=-0.5
+                self.end_game = 1
+                r = -1
+
+        if action == 1:
+            if self.y1 == 4:
+                r = -0.5
+            elif self.migong[self.y1 + 1][self.x1] == 0 or self.migong[self.y1 + 1][self.x1] == 2:
+                self.migong[self.y1][self.x1] = 0
+                if self.migong[self.y1 + 1][self.x1] == 2:
+                    self.end_game = 2
+                    r = 100
+                self.migong[self.y1 + 1][self.x1] = 1
+                self.y1 += 1
+                loc += 21
+                
             else:
-                self.migong[self.y1][self.x1]=0
-                self.migong[self.y1][self.x1+1]=1
-                self.x1+=1
-                if self.y1==1 and self.x1==3:
-                    self.end_game=1
-                    r=-1
-                elif self.y1==3 and self.x1==1:
-                    self.end_game=1
-                    r=-1
-                elif self.y1==4 and self.x1==4:
-                    self.end_game=2
-                    r=1
-        #return self.migong
-        return self.end_game,r,self.migong
+                self.end_game = 1
+                r = -1
+
+        if action == 2:
+            if self.x1 == 0:
+                r = -0.5
+            elif self.migong[self.y1][self.x1 - 1] == 0 or  self.migong[self.y1][self.x1 - 1] == 2:
+                self.migong[self.y1][self.x1] = 0
+                if self.migong[self.y1][self.x1 - 1] == 2:
+                    self.end_game = 2
+                    r = 100
+                else:
+                    self.migong[self.y1][self.x1 - 1] = 1
+                    self.x1 -= 1
+                    loc -= 1
+            else:
+                self.end_game = 1
+                r = -1
+                
+        if action == 3:
+            if self.x1 == 4:
+                r = -0.5
+            elif self.migong[self.y1][self.x1 + 1] == 0 or self.migong[self.y1][self.x1 + 1] == 2:
+                self.migong[self.y1][self.x1] = 0
+                if self.migong[self.y1][self.x1 + 1] == 2:
+                    self.end_game = 2
+                    r = 100
+                self.migong[self.y1][self.x1 + 1] = 1
+                self.x1 += 1
+                loc += 1
+            else:
+                self.end_game = 1
+                r = -1
+        # return self.migong
+        return self.end_game, r, self.migong, loc

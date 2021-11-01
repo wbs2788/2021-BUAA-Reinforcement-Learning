@@ -166,7 +166,7 @@ def find_start_end(grid):
         state.append(counter)    
         counter+=1
 
-        if counter % 21 == 20:
+        if counter % 21 == 0:
             maze.append(row)
             row = []
     
@@ -241,21 +241,29 @@ def DQNLearning(num, epsilon, gamma, maze):
     #400步
     study=1
     new_maze = np.array(maze)
-    migong = train.trans_torch(new_maze[10:15, 7:12])
     env=game.Env()
-    for i_episode in range(250):
+    multiplier = 1.0
+    for i_episode in range(30):
+        migong = new_maze[10:15, 7:12].copy()
+        loc = start
+        #loc = np.random.choice(states)
+        #while loc == end:
+        #    loc = np.random.choice(states)
+        # print(loc)
+        migong[start // 21 - 10][start % 21 - 7] = 0
+        migong[loc // 21 - 10][loc % 21 - 7] = 1
+        # print(migong)
         #print(i_episode,'epoch')
-        print(migong)
         s = env.start_env(migong)
-        print(s)
         s = train.trans_torch(s)
         loss=0
+        epsilon = 1 / (1 + i_episode)
+        # print(epsilon)
         while True:
-            env.display()   # 显示实验动画
-            a = dqn.choose_action(s) #选择动作
-            print(a)
+            # env.display()   # 显示实验动画
+            a = dqn.choose_action(s, 1 - epsilon) #选择动作
             # 选动作, 得到环境反馈
-            done,r,s_ = env.step(a)
+            done,r,s_,loc = env.step(a, loc)
             s_=train.trans_torch(s_)
             # 存记忆
             dqn.store_transition(s, a, r, s_)        
@@ -265,12 +273,13 @@ def DQNLearning(num, epsilon, gamma, maze):
                     study=0
                 loss=dqn.learn() # 记忆库满了就进行学习
             if done==1 or done==2:    # 如果回合结束, 进入下回合
-                print(loss)
-                if done==1:
-                    print('epoch',i_episode,r,'失败')
+                # print(float(loss))
+                #if done==1:
+                #    print('epoch',i_episode,r,'失败')
                 if done==2:
-                    print('epoch',i_episode,r,'成功')                
-                break
+                    print('epoch',i_episode,r,'成功')
+                    multiplier *= 0.9        
+                    break
             s = s_
     return dqn
 
@@ -278,14 +287,14 @@ def get_shortest_path(dqn:train.DQN, maze):
     s_path = []
     s_path.append(start)
     cur = start
-    new_maze = maze
+    env = game.Env()
+    s = env.start_env(np.array(maze)[10:15, 7:12])
+    s = train.trans_torch(s)
     while cur != end:
-        s = train.trans_torch(new_maze)
-        action = dqn.choose_action(s, 0)
-        tc = Reward_state_action(cur, action)
-        new_maze[cur // 21][(cur + 1) % 21] = 0
-        cur = tc[2]
-        new_maze[cur // 21][(cur + 1) % 21] = 1
+        action = dqn.choose_action(s, 1)
+        tc = env.step(action, cur)
+        s = tc[2]
+        cur = tc[3]
         s_path.append(cur)
     return s_path
 

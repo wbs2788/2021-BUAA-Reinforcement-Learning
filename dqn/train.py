@@ -19,7 +19,7 @@ BATCH_SIZE = 32
 LR = 0.01                   # 学习率
 EPSILON = 0.9               # 最优选择动作百分比(有0.9的几率是最大选择，还有0.1是随机选择，增加网络能学到的Q值)
 GAMMA = 0.9                 # 奖励递减参数（衰减作用，如果没有奖励值r=0，则衰减Q值）
-TARGET_REPLACE_ITER = 100   # Q 现实网络的更新频率100次循环更新一次
+TARGET_REPLACE_ITER = 4   # Q 现实网络的更新频率100次循环更新一次
 MEMORY_CAPACITY = 2000      # 记忆库大小
 N_ACTIONS = 4  # 棋子的动作0，1，2，3
 N_STATES = 1
@@ -34,7 +34,8 @@ def trans_torch(list1):
 class Net(nn.Module):
     def __init__(self):
         super(Net, self).__init__()        
-        self.c1=nn.Conv2d(3,25,5,1,0)
+        self.c1 = nn.Conv2d(3, 16, 3, 1, 0)
+        self.c2 = nn.Conv2d(16, 25, 3, 1, 0)
         self.f1=nn.Linear(25,16)
         self.f1.weight.data.normal_(0, 0.1)
         self.f2=nn.Linear(16,4)
@@ -42,7 +43,10 @@ class Net(nn.Module):
     def forward(self, x):
         x=self.c1(x)
         x=F.relu(x)
-        print(x.shape)
+        # print(x.shape)
+        x = self.c2(x)
+        # print(x.shape)
+        x = F.relu(x)
         x = x.view(x.size(0),-1)
         x=self.f1(x)
         x=F.relu(x)   
@@ -99,45 +103,12 @@ class DQN(object):
         b_r = torch.FloatTensor(b_r).cuda() #取出r
         b_s_ = torch.FloatTensor(b_s_).cuda() #取出s_
         # 针对做过的动作b_a, 来选 q_eval 的值, (q_eval 原本有所有动作的值)
-        q_eval = self.eval_net(b_s).gather(1, b_a)  # shape (batch, 1) 找到action的Q估计(关于gather使用下面有介绍)
-        q_next = self.target_net(b_s_).detach()     # q_next 不进行反向传递误差, 所以 detach Q现实
-        q_target = b_r + GAMMA * q_next.max(1)[0]   # shape (batch, 1) DQL核心公式
-        loss = self.loss_func(q_eval, q_target) #计算误差
+        q_eval = self.eval_net(b_s).gather(1, b_a)                          # shape (batch, 1) 找到action的Q估计(关于gather使用下面有介绍)
+        q_next = self.target_net(b_s_).detach()                             # q_next 不进行反向传递误差, 所以 detach Q现实
+        q_target = b_r + GAMMA * q_next.max(1)[0].reshape(BATCH_SIZE, 1)    # shape (batch, 1) DQL核心公式
+        loss =  F.smooth_l1_loss(q_eval, q_target) #计算误差
         # 计算, 更新 eval net
         self.optimizer.zero_grad() #
         loss.backward() #反向传递
         self.optimizer.step()
         return loss
-
-dqn = DQN() # 定义 DQN 系统
-#400步
-study=1
-env=Env()
-for i_episode in range(250):
-    #print(i_episode,'epoch')
-    s = env.start_env()
-    print(s)
-    s = trans_torch(s)
-    loss=0
-    while True:
-        env.display()   # 显示实验动画
-        a = dqn.choose_action(s) #选择动作
-        print(a)
-        # 选动作, 得到环境反馈
-        done,r,s_ = env.step(a)
-        s_=trans_torch(s_)
-        # 存记忆
-        dqn.store_transition(s, a, r, s_)        
-        if dqn.memory_counter > MEMORY_CAPACITY:
-            if study==1:
-                print('2000经验池')
-                study=0
-            loss=dqn.learn() # 记忆库满了就进行学习
-        if done==1 or done==2:    # 如果回合结束, 进入下回合
-            print(loss)
-            if done==1:
-                print('epoch',i_episode,r,'失败')
-            if done==2:
-                print('epoch',i_episode,r,'成功')                
-            break
-        s = s_
