@@ -21,9 +21,9 @@ class Env():
                                 [0,0,0,3,0],
                                 [0,0,0,0,0],
                                 [0,3,0,0,0],
-                                [0,0,0,0,2],]):
+                                [0,0,0,0,2],], x1=0, y1=0):
         self.migong = migong.copy()
-        self.x1,self.y1=0,0
+        self.x1,self.y1=x1, y1
         self.end_game=0
         return self.migong
         

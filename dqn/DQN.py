@@ -24,14 +24,18 @@ try:
 except:
     import MalmoPython
 
+import json
 import os
+import random
 import sys
 import time
-import json
+
 import numpy as np
-import random
-import train
+import torch
+
 import game
+import train
+
 # from priority_dict import priorityDictionary as PQ
 
 
@@ -236,67 +240,53 @@ def epsilon_greedy(qtem, s, epsilon):
         action = qtem[states.index(s)]
     return action
 
-def DQNLearning(num, epsilon, gamma, maze):
-    dqn = train.DQN() # 定义 DQN 系统
+def DQNLearning(num, epsilon, maze, dqn:train.DQN) -> train.DQN:
     #400步
-    study=1
+    study = 1
     new_maze = np.array(maze)
-    env=game.Env()
+    env = game.Env()
     multiplier = 1.0
-    for i_episode in range(30):
+    for i_episode in range(num):
+        s_cnt = 0
         migong = new_maze[10:15, 7:12].copy()
         loc = start
-        #loc = np.random.choice(states)
-        #while loc == end:
-        #    loc = np.random.choice(states)
-        # print(loc)
-        migong[start // 21 - 10][start % 21 - 7] = 0
-        migong[loc // 21 - 10][loc % 21 - 7] = 1
-        # print(migong)
-        #print(i_episode,'epoch')
-        s = env.start_env(migong)
+        s = env.start_env(migong, loc % 21 - 7, loc // 21 - 10)
         s = train.trans_torch(s)
-        loss=0
-        epsilon = 1 / (1 + i_episode)
-        # print(epsilon)
+        loss = 0.0
+        epsilon = 1 / (2 + s_cnt)
         while True:
-            # env.display()   # 显示实验动画
             a = dqn.choose_action(s, 1 - epsilon) #选择动作
-            # 选动作, 得到环境反馈
             done,r,s_,loc = env.step(a, loc)
-            s_=train.trans_torch(s_)
-            # 存记忆
+            s_ = train.trans_torch(s_)
             dqn.store_transition(s, a, r, s_)        
             if dqn.memory_counter > train.MEMORY_CAPACITY:
-                if study==1:
+                if study == 1:
                     print('2000经验池')
-                    study=0
-                loss=dqn.learn() # 记忆库满了就进行学习
-            if done==1 or done==2:    # 如果回合结束, 进入下回合
-                # print(float(loss))
-                #if done==1:
-                #    print('epoch',i_episode,r,'失败')
-                if done==2:
-                    print('epoch',i_episode,r,'成功')
-                    multiplier *= 0.9        
-                    break
+                    study = 0
+                loss = dqn.learn() # 记忆库满了就进行学习
+            if done == 2:
+                s_cnt += 1
+                print(loss)
+                print('epoch', i_episode, r, '成功')
+                multiplier *= 0.9        
+                break
             s = s_
     return dqn
 
-def get_shortest_path(dqn:train.DQN, maze):
-    s_path = []
-    s_path.append(start)
-    cur = start
-    env = game.Env()
-    s = env.start_env(np.array(maze)[10:15, 7:12])
-    s = train.trans_torch(s)
-    while cur != end:
-        action = dqn.choose_action(s, 1)
-        tc = env.step(action, cur)
-        s = tc[2]
-        cur = tc[3]
-        s_path.append(cur)
-    return s_path
+def get_shortest_path(dqn:train.DQN, maze) -> list:
+    loc = start
+    path = []
+    path.append(loc)
+    env = train.Env()
+    s = env.start_env(np.array(maze)[10:15, 7:12],
+                        loc % 21 - 7, loc // 21 - 10)
+    while loc != end:
+        s = train.trans_torch(s)
+        a = dqn.choose_action(s, 1) # 按最优选择动作
+        _, _, s_, loc = env.step(a, loc)
+        s = s_
+        path.append(loc)
+    return path
 
 agent_host = MalmoPython.AgentHost()
 try:
@@ -313,6 +303,7 @@ if agent_host.receivedArgument("test"):
     num_repeats = 1
 else:
     num_repeats = 5
+dqn = train.DQN()
 
 for i in range(num_repeats):
     size = int(5)
@@ -324,7 +315,10 @@ for i in range(num_repeats):
     # Attempt to start a mission:
     max_retries = 3
     my_clients = MalmoPython.ClientPool()
-    my_clients.add(MalmoPython.ClientInfo('127.0.0.1', 10001))  # add Minecraft machines here as available
+    if torch.cuda.is_available():
+        my_clients.add(MalmoPython.ClientInfo('127.0.0.1', 10001))  # add Minecraft machines here as available
+    else:
+        my_clients.add(MalmoPython.ClientInfo('127.0.0.1', 10000)) 
 
     for retry in range(max_retries):
         try:
@@ -356,7 +350,7 @@ for i in range(num_repeats):
     start,end,air_block,diamond_block,maze=find_start_end(grid)
     states = []   # 为简化计算可以仅获取迷宫中agent可站立的states
     actions = np.arange(4)  # 定义actions
-    num = 500        #定义采样次数
+    num = 30        #定义采样次数
     epsilon = 0.95     #定义epsilon
     gamma = 1      #定义gamma
 
@@ -367,7 +361,7 @@ for i in range(num_repeats):
             states.append(counter)
         counter +=1
 
-    dqn = DQNLearning(num, epsilon, gamma, maze)
+    dqn = DQNLearning(num, epsilon, maze, dqn)
     path = get_shortest_path(dqn, maze)
     print(path)
     action_list = extract_action_list_from_path(path)
