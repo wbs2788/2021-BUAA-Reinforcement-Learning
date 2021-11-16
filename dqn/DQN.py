@@ -19,22 +19,21 @@
 
 # Tutorial sample #7: The Maze Decorator
 
+import torch
+
+import game
+import train
+
 try:
     from malmo import MalmoPython
 except:
     import MalmoPython
 
 import json
-import os
-import random
 import sys
 import time
 
 import numpy as np
-import torch
-
-import game
-import train
 
 # from priority_dict import priorityDictionary as PQ
 

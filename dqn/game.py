@@ -7,8 +7,6 @@ Created on Fri Oct 23 10:48:20 2020
 
 import cv2
 import numpy as np
-import random
-import time
 
 class Env():
     def __init__(self):
